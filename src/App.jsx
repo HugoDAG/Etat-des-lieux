@@ -353,7 +353,7 @@ export default function App() {
           </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
             {props.map((pr, i) => (
-              <div key={pr.id}>
+              <div key={pr.id} style={{ position: "relative", display: "flex", alignItems: "center" }}>
                 {editingName === i ? (
                   <input ref={nameRef} value={pr.name}
                     onChange={e => { const np = props.map((x, j) => j === i ? { ...x, name: e.target.value } : x); updateProps(np); }}
@@ -362,10 +362,15 @@ export default function App() {
                 ) : (
                   <button onClick={() => { setPi(i); setRi(null); setTab("entree"); setPanel(null); }}
                     onDoubleClick={() => setEditingName(i)} title="Double-clic pour renommer"
-                    style={{ padding: "8px 14px", borderRadius: "8px 8px 0 0", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
+                    style={{ padding: "8px 14px", paddingRight: props.length > 1 ? 28 : 14, borderRadius: "8px 8px 0 0", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap",
                       background: i === pi ? "rgba(255,255,255,.15)" : "transparent", color: i === pi ? "#fff" : "rgba(255,255,255,.55)" }}>
                     {pr.name || "Logement " + (i + 1)}
                   </button>
+                )}
+                {props.length > 1 && editingName !== i && (
+                  <button onClick={async (e) => { e.stopPropagation(); if (!confirm("Supprimer « " + (pr.name || "Logement " + (i+1)) + " » ?")) return; await supabase.from("edl_properties").delete().eq("id", pr.id); const np = props.filter((_, j) => j !== i); setProps(np); setPi(Math.max(0, Math.min(pi, np.length - 1))); setRi(null); }}
+                    title="Supprimer"
+                    style={{ position: "absolute", right: 4, top: 6, width: 18, height: 18, borderRadius: "50%", border: "none", background: "rgba(255,255,255,.15)", color: "rgba(255,255,255,.5)", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>✕</button>
                 )}
               </div>
             ))}
