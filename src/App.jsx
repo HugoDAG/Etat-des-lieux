@@ -9,6 +9,7 @@ const ETAT_COLORS = {
   "Neuf": "#2980b9", "Très bon état": "#27ae60", "Bon état": "#2d8a4e",
   "Usage normal": "#c58c28", "Dégradé": "#c0392b", "Hors service": "#7f1d1d",
 };
+const ETAT_RANK = { "Neuf": 0, "Très bon état": 1, "Bon état": 2, "Usage normal": 3, "Dégradé": 4, "Hors service": 5 };
 
 const ROOM_TEMPLATES = {
   "Séjour": [
@@ -94,7 +95,29 @@ const blankProp = (n) => ({
   entree: blankInsp("entree"), sortie: blankInsp("sortie"), documents: [],
 });
 
-const C = { bg: "#f4f5f7", card: "#fff", pri: "#1b3a5c", acc: "#2d8a4e", txt: "#1a2233", mut: "#7a8694", brd: "#e0e4ea", dan: "#c0392b", light: "#eef1f5" };
+// Deep clone entree into sortie keeping structure but resetting photos & comments
+const cloneEntreeToSortie = (entree) => {
+  const sortie = JSON.parse(JSON.stringify(entree));
+  sortie.id = uid();
+  sortie.type = "sortie";
+  sortie.date = today();
+  sortie.comments = "";
+  sortie.signatureOwner = null;
+  sortie.signatureTenant = null;
+  sortie.completed = false;
+  sortie.rooms.forEach(r => {
+    r.id = uid();
+    r.elements.forEach(el => {
+      el.id = uid();
+      el.photos = []; // Clear photos — sortie gets its own
+      el.comment = ""; // Clear comments
+      // Keep etat and fonctionnel from entree as baseline
+    });
+  });
+  return sortie;
+};
+
+const C = { bg: "#f4f5f7", card: "#fff", pri: "#1b3a5c", acc: "#2d8a4e", txt: "#1a2233", mut: "#7a8694", brd: "#e0e4ea", dan: "#c0392b", light: "#eef1f5", warn: "#c58c28" };
 const cS = { background: C.card, borderRadius: 10, padding: 16, marginBottom: 8, boxShadow: "0 1px 3px rgba(0,0,0,.04)" };
 const iS = { width: "100%", padding: "9px 12px", borderRadius: 8, border: "1.5px solid " + C.brd, fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit", background: "#fff", minHeight: 48, resize: "vertical" };
 const sep = { border: "none", borderTop: "1px solid " + C.brd, margin: "12px 0" };
@@ -200,8 +223,24 @@ function DocMgr({ docs, onChange }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════ */
-/* MAIN APP                                                       */
+// ── Entree badge for sortie comparison ────────────────────────
+function EntreeBadge({ entreeEtat }) {
+  if (!entreeEtat) return null;
+  return (
+    <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 8, background: C.light, color: C.mut, marginLeft: 6 }}>
+      Entrée : {entreeEtat}
+    </span>
+  );
+}
+
+function ChangeBadge({ entreeEtat, sortieEtat }) {
+  if (!entreeEtat) return null;
+  const diff = ETAT_RANK[sortieEtat] - ETAT_RANK[entreeEtat];
+  if (diff === 0) return <span style={{ fontSize: 9, color: C.acc, fontWeight: 600, marginLeft: 4 }}>= Inchangé</span>;
+  if (diff > 0) return <span style={{ fontSize: 9, color: C.dan, fontWeight: 600, marginLeft: 4 }}>↓ Dégradation</span>;
+  return <span style={{ fontSize: 9, color: "#2980b9", fontWeight: 600, marginLeft: 4 }}>↑ Amélioration</span>;
+}
+
 /* ═══════════════════════════════════════════════════════════════ */
 export default function App() {
   const [props, setProps] = useState([]);
@@ -215,23 +254,20 @@ export default function App() {
   const nameRef = useRef();
   const saveTimer = useRef(null);
 
-  /* ── Load from Supabase ──────────────────────────────────── */
   useEffect(() => {
     (async () => {
       const { data } = await supabase.from("edl_properties").select("*").order("created_at");
       if (data && data.length > 0) {
         setProps(data.map(d => ({ ...d, entree: d.entree || blankInsp("entree"), sortie: d.sortie || blankInsp("sortie"), documents: d.documents || [] })));
       } else {
-        // Premier lancement : créer un logement par défaut
         const def = blankProp("Logement 1");
-        const { data: inserted } = await supabase.from("edl_properties").insert(def).select().single();
-        if (inserted) setProps([{ ...inserted, entree: inserted.entree || blankInsp("entree"), sortie: inserted.sortie || blankInsp("sortie"), documents: inserted.documents || [] }]);
+        const { data: ins } = await supabase.from("edl_properties").insert(def).select().single();
+        if (ins) setProps([{ ...ins, entree: ins.entree || blankInsp("entree"), sortie: ins.sortie || blankInsp("sortie"), documents: ins.documents || [] }]);
       }
       setLoading(false);
     })();
   }, []);
 
-  /* ── Auto-save with debounce ─────────────────────────────── */
   const saveToSupabase = useCallback(async (properties) => {
     setSaving(true);
     for (const p of properties) {
@@ -246,13 +282,12 @@ export default function App() {
     saveTimer.current = setTimeout(() => saveToSupabase(properties), 1500);
   }, [saveToSupabase]);
 
-  const updateProps = (newProps) => {
-    setProps(newProps);
-    debouncedSave(newProps);
-  };
+  const updateProps = (newProps) => { setProps(newProps); debouncedSave(newProps); };
 
   const p = props[pi] || props[0];
   const insp = p ? (tab === "entree" ? p.entree : tab === "sortie" ? p.sortie : null) : null;
+  // For sortie view, get the entree data to show comparison
+  const entreeData = p ? p.entree : null;
 
   const uProp = (patch) => { const np = props.map((x, i) => i === pi ? { ...x, ...patch } : x); updateProps(np); };
   const uInsp = (patch) => uProp({ [tab]: { ...insp, ...patch } });
@@ -265,9 +300,7 @@ export default function App() {
     const { data } = await supabase.from("edl_properties").insert(def).select().single();
     if (data) {
       const np = [...props, { ...data, entree: data.entree || blankInsp("entree"), sortie: data.sortie || blankInsp("sortie"), documents: data.documents || [] }];
-      setProps(np);
-      setPi(np.length - 1);
-      setTab("entree"); setRi(null);
+      setProps(np); setPi(np.length - 1); setTab("entree"); setRi(null);
     }
   };
 
@@ -275,31 +308,47 @@ export default function App() {
     if (props.length <= 1) return;
     await supabase.from("edl_properties").delete().eq("id", p.id);
     const np = props.filter((_, i) => i !== pi);
-    setProps(np);
-    setPi(Math.max(0, pi - 1)); setRi(null);
+    setProps(np); setPi(Math.max(0, pi - 1)); setRi(null);
   };
 
-  const printPDF = () => { if (!insp) return; const w = window.open("", "_blank"); w.document.write(genPDF(p, insp)); w.document.close(); setTimeout(() => w.print(), 400); };
+  // Copy entree to sortie
+  const copierEntree = () => {
+    if (!entreeData || !entreeData.rooms || entreeData.rooms.length === 0) return;
+    const newSortie = cloneEntreeToSortie(entreeData);
+    uProp({ sortie: newSortie });
+  };
+
+  const printPDF = () => {
+    if (!insp) return;
+    const w = window.open("", "_blank");
+    w.document.write(genPDF(p, insp, tab === "sortie" ? entreeData : null));
+    w.document.close();
+    setTimeout(() => w.print(), 600);
+  };
 
   useEffect(() => { if (editingName !== null && nameRef.current) nameRef.current.focus(); }, [editingName]);
 
   if (loading) return (
     <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter',system-ui,sans-serif" }}>
-      <div style={{ textAlign: "center", color: C.mut }}>
-        <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
-        <p>Chargement…</p>
-      </div>
+      <div style={{ textAlign: "center", color: C.mut }}><div style={{ fontSize: 36, marginBottom: 12 }}>📋</div><p>Chargement…</p></div>
     </div>
   );
-
   if (!p) return null;
+
+  // Helper: find entree element matching a sortie element
+  const findEntreeEl = (roomName, elCat, elType) => {
+    if (!entreeData || !entreeData.rooms) return null;
+    const room = entreeData.rooms.find(r => r.name === roomName);
+    if (!room) return null;
+    return room.elements.find(e => e.cat === elCat && e.type === elType) || null;
+  };
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", color: C.txt }}>
       <header style={{ background: "linear-gradient(135deg, " + C.pri + " 0%, #264d73 100%)", color: "#fff", padding: "20px 20px 0" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
+            <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 H2A Gestion</h1>
             {saving && <span style={{ fontSize: 11, opacity: 0.6 }}>💾 Sauvegarde…</span>}
           </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
@@ -365,10 +414,26 @@ export default function App() {
               {insp.completed && <span style={{ color: C.acc, fontWeight: 600, fontSize: 12 }}>✓ Finalisé</span>}
             </div>
 
+            {/* Copy entree button for sortie */}
+            {tab === "sortie" && entreeData && entreeData.rooms && entreeData.rooms.length > 0 && (
+              <button onClick={copierEntree}
+                style={{ ...btnS(C.warn + "15", C.warn, "1.5px solid " + C.warn), width: "100%", marginBottom: 8, fontSize: 12 }}>
+                📋 Copier les éléments depuis l'état d'entrée
+              </button>
+            )}
+
             {insp.rooms.map((room, idx) => {
               const deg = room.elements.some(e => e.etat === "Dégradé" || e.etat === "Hors service");
               const nf = room.elements.filter(e => !e.fonctionnel).length;
               const ph = room.elements.reduce((s, e) => s + e.photos.length, 0);
+              // Count changes vs entree
+              let changes = 0;
+              if (tab === "sortie" && entreeData) {
+                room.elements.forEach(el => {
+                  const ee = findEntreeEl(room.name, el.cat, el.type);
+                  if (ee && ee.etat !== el.etat) changes++;
+                });
+              }
               return (
                 <div key={room.id} onClick={() => setRi(idx)} style={{ ...cS, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
                   <div style={{ flex: 1 }}>
@@ -377,6 +442,7 @@ export default function App() {
                       <span>{room.elements.length} éléments</span>
                       {ph > 0 && <span>📷 {ph}</span>}
                       {nf > 0 && <span style={{ color: C.dan }}>⚠ {nf} HS</span>}
+                      {changes > 0 && <span style={{ color: C.warn }}>↕ {changes} modif.</span>}
                     </div>
                   </div>
                   {deg && <span style={{ fontSize: 16 }}>⚠️</span>}
@@ -425,6 +491,7 @@ export default function App() {
           </>
         )}
 
+        {/* ── Room detail ──────────────────────────────────── */}
         {insp && ri !== null && (() => {
           const room = insp.rooms[ri]; if (!room) return null;
           const cats = [...new Set(room.elements.map(e => e.cat))];
@@ -443,10 +510,15 @@ export default function App() {
                   <div style={{ fontSize: 10, fontWeight: 700, color: C.mut, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 6, paddingBottom: 4, borderBottom: "1px solid " + C.light }}>{cat}</div>
                   {room.elements.map((el, ei) => {
                     if (el.cat !== cat) return null;
+                    const entreeEl = tab === "sortie" ? findEntreeEl(room.name, el.cat, el.type) : null;
                     return (
                       <div key={el.id} style={{ ...cS, padding: 14 }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <span style={{ fontWeight: 600, fontSize: 13 }}>{el.type}</span>
+                          <div>
+                            <span style={{ fontWeight: 600, fontSize: 13 }}>{el.type}</span>
+                            {entreeEl && <EntreeBadge entreeEtat={entreeEl.etat} />}
+                            {entreeEl && <ChangeBadge entreeEtat={entreeEl.etat} sortieEtat={el.etat} />}
+                          </div>
                           <button onClick={() => uRoom(ri, r => ({ ...r, elements: r.elements.filter((_, j) => j !== ei) }))} style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", fontSize: 14 }}>✕</button>
                         </div>
                         <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 6 }}>
@@ -461,8 +533,19 @@ export default function App() {
                               style={{ padding: "3px 10px", borderRadius: 12, fontSize: 10, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", border: "1.5px solid " + (el.fonctionnel === v ? c : C.brd), background: el.fonctionnel === v ? c + "10" : "transparent", color: el.fonctionnel === v ? c : C.mut }}>{l}</button>
                           ))}
                         </div>
-                        <textarea style={{ ...iS, fontSize: 12, minHeight: 38 }} placeholder="Commentaire…" value={el.comment} onChange={e => uEl(ri, ei, { comment: e.target.value })} />
+                        <textarea style={{ ...iS, fontSize: 12, minHeight: 38 }} placeholder={tab === "sortie" ? "Justification du changement…" : "Commentaire…"} value={el.comment} onChange={e => uEl(ri, ei, { comment: e.target.value })} />
                         <Photos photos={el.photos} onChange={photos => uEl(ri, ei, { photos })} />
+                        {/* Show entree photos for reference in sortie */}
+                        {entreeEl && entreeEl.photos && entreeEl.photos.length > 0 && (
+                          <div style={{ marginTop: 8, padding: 8, background: C.light, borderRadius: 6 }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: C.mut, marginBottom: 4 }}>📷 Photos d'entrée (référence)</div>
+                            <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                              {entreeEl.photos.map(ph => (
+                                <img key={ph.id} src={ph.data} alt="" style={{ width: 48, height: 48, borderRadius: 4, objectFit: "cover", border: "1px solid " + C.brd }} />
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -478,24 +561,53 @@ export default function App() {
   );
 }
 
-function genPDF(p, insp) {
+/* ── PDF with photos + comparison ─────────────────────────────── */
+function genPDF(p, insp, entreeData) {
   const eb = e => '<span style="padding:2px 6px;border-radius:6px;font-size:9px;font-weight:600;background:' + (ETAT_COLORS[e]||"#888") + '15;color:' + (ETAT_COLORS[e]||"#888") + '">' + e + '</span>';
-  let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDL - ' + p.name + '</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;color:#1a2233;padding:36px}h1{font-size:18px;color:#1b3a5c;margin-bottom:2px}h2{font-size:13px;margin:16px 0 6px;border-bottom:1.5px solid #dde2e8;padding-bottom:3px}h3{font-size:10px;color:#7a8694;text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th,td{padding:4px 6px;border-bottom:1px solid #eef1f5;text-align:left;font-size:10px}th{font-weight:600;background:#f5f6f8}.sig{max-height:55px;margin-top:3px}.nf{color:#c0392b;font-weight:700}@media print{body{padding:20px}}</style></head><body>';
+  const findEE = (roomName, cat, type) => {
+    if (!entreeData || !entreeData.rooms) return null;
+    const r = entreeData.rooms.find(r => r.name === roomName);
+    return r ? r.elements.find(e => e.cat === cat && e.type === type) : null;
+  };
+  let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDL - ' + (p.name||"") + '</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;color:#1a2233;padding:36px}h1{font-size:18px;color:#1b3a5c;margin-bottom:2px}h2{font-size:13px;margin:16px 0 6px;border-bottom:1.5px solid #dde2e8;padding-bottom:3px}h3{font-size:10px;color:#7a8694;text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th,td{padding:4px 6px;border-bottom:1px solid #eef1f5;text-align:left;font-size:10px;vertical-align:top}th{font-weight:600;background:#f5f6f8}.sig{max-height:55px;margin-top:3px}.nf{color:#c0392b;font-weight:700}.photos{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}.photos img{width:60px;height:60px;object-fit:cover;border-radius:3px;border:1px solid #ddd}.change-down{color:#c0392b;font-weight:700;font-size:9px}.change-up{color:#2980b9;font-weight:700;font-size:9px}@media print{body{padding:20px}.photos img{width:50px;height:50px}}</style></head><body>';
   h += '<h1>ÉTAT DES LIEUX ' + (insp.type === "entree" ? "D\'ENTRÉE" : "DE SORTIE") + '</h1>';
   h += '<p style="color:#7a8694;margin-bottom:10px">À annexer au contrat de location</p>';
-  h += '<table><tr><td style="width:50%;vertical-align:top;border:none"><strong>Bailleur</strong><br/>' + (p.owner||"—") + '<br/>' + (p.owner_address||p.ownerAddress||"") + '<br/>' + (p.owner_email||p.ownerEmail||"") + '</td>';
-  h += '<td style="vertical-align:top;border:none"><strong>Locataire</strong><br/>' + (p.tenant||"—") + '<br/>' + (p.tenant_email||p.tenantEmail||"") + '<br/>' + (p.tenant_tel||p.tenantTel||"") + '</td></tr></table>';
+  h += '<table><tr><td style="width:50%;border:none"><strong>Bailleur</strong><br/>' + (p.owner||"—") + '<br/>' + (p.ownerAddress||"") + '<br/>' + (p.ownerEmail||"") + '</td>';
+  h += '<td style="border:none"><strong>Locataire</strong><br/>' + (p.tenant||"—") + '<br/>' + (p.tenantEmail||"") + '<br/>' + (p.tenantTel||"") + '</td></tr></table>';
   h += '<p><strong>Bien :</strong> ' + (p.address||"—") + ' — ' + (p.designation||"") + ' &nbsp; <strong>Date :</strong> ' + insp.date + '</p>';
+
   insp.rooms.forEach(r => {
     h += '<h2>' + r.name + '</h2>';
-    [...new Set(r.elements.map(e => e.cat))].forEach(cat => {
-      h += '<h3>' + cat + '</h3><table><tr><th>Élément</th><th>État</th><th>Fonct.</th><th>Commentaire</th></tr>';
-      r.elements.filter(e => e.cat === cat).forEach(el => {
-        h += '<tr><td>' + el.type + '</td><td>' + eb(el.etat) + '</td><td>' + (el.fonctionnel ? "✓" : "<span class='nf'>✗</span>") + '</td><td style="color:#7a8694">' + (el.comment || "—") + '</td></tr>';
+    var cats2 = []; r.elements.forEach(function(e){ if(cats2.indexOf(e.cat)===-1) cats2.push(e.cat); });
+    cats2.forEach(function(cat) {
+      h += '<h3>' + cat + '</h3><table><tr><th>Élément</th><th>État</th>';
+      if (entreeData) h += '<th>Entrée</th><th>Δ</th>';
+      h += '<th>Fonct.</th><th>Commentaire</th><th>Photos</th></tr>';
+      r.elements.filter(function(e){ return e.cat === cat; }).forEach(function(el) {
+        var ee = entreeData ? findEE(r.name, el.cat, el.type) : null;
+        var diff = "";
+        if (ee) {
+          var d = ETAT_RANK[el.etat] - ETAT_RANK[ee.etat];
+          if (d > 0) diff = '<span class="change-down">↓ Dégradation</span>';
+          else if (d < 0) diff = '<span class="change-up">↑ Amélioration</span>';
+          else diff = '=';
+        }
+        h += '<tr><td>' + el.type + '</td><td>' + eb(el.etat) + '</td>';
+        if (entreeData) h += '<td>' + (ee ? eb(ee.etat) : "—") + '</td><td>' + diff + '</td>';
+        h += '<td>' + (el.fonctionnel ? "✓" : "<span class='nf'>✗</span>") + '</td>';
+        h += '<td style="color:#7a8694;max-width:150px">' + (el.comment || "—") + '</td>';
+        h += '<td>';
+        if (el.photos && el.photos.length > 0) {
+          h += '<div class="photos">';
+          el.photos.forEach(function(ph) { h += '<img src="' + ph.data + '"/>'; });
+          h += '</div>';
+        } else { h += '—'; }
+        h += '</td></tr>';
       });
       h += '</table>';
     });
   });
+
   if (insp.releves && insp.releves.edfNum) h += '<h2>Relevés</h2><p>EDF N°' + insp.releves.edfNum + ' HC:' + insp.releves.edfHC + ' HP:' + insp.releves.edfHP + ' · Eau N°' + insp.releves.eauNum + ' : ' + insp.releves.eauReleve + '</p>';
   if (insp.cles && insp.cles.principale) h += '<h2>Clés</h2><p>Principale: ' + insp.cles.principale + ' · Dép.: ' + insp.cles.dependance + ' · PAC: ' + insp.cles.pompe + ' · BAL: ' + insp.cles.bal + '</p>';
   if (insp.comments) h += '<h2>Observations</h2><p>' + insp.comments + '</p>';
