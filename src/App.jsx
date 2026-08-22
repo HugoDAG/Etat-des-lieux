@@ -252,6 +252,7 @@ export default function App() {
   const [editingName, setEditingName] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const nameRef = useRef();
   const saveTimer = useRef(null);
 
@@ -351,6 +352,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
             {saving && <span style={{ fontSize: 11, opacity: 0.6 }}>💾 Sauvegarde…</span>}
+            <button onClick={() => setShowHelp(true)} style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff", width: 28, height: 28, borderRadius: "50%", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>?</button>
           </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
             {props.map((pr, i) => (
@@ -379,6 +381,50 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {showHelp && (
+        <div onClick={() => setShowHelp(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 14, padding: 28, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 8px 30px rgba(0,0,0,.2)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, color: C.pri }}>📋 Comment utiliser l'app</h2>
+              <button onClick={() => setShowHelp(false)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.mut }}>✕</button>
+            </div>
+
+            <div style={{ fontSize: 13, lineHeight: 1.7, color: C.txt }}>
+              <p style={{ marginBottom: 12 }}>Cette application vous permet de réaliser des états des lieux d'entrée et de sortie pour vos biens immobiliers, directement depuis votre téléphone ou ordinateur.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>🏠 Logements</h3>
+              <p style={{ marginBottom: 12 }}>Chaque onglet en haut correspond à un logement. Cliquez <strong>+</strong> pour en ajouter, <strong>✕</strong> pour supprimer, ou <strong>double-cliquez</strong> sur le nom pour le renommer.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>🔑 État des lieux d'entrée</h3>
+              <p style={{ marginBottom: 12 }}>Renseignez les informations du logement via ⚙️, puis parcourez chaque pièce pour noter l'état de chaque élément (murs, sols, électricité…). Ajoutez des <strong>photos</strong> et des <strong>commentaires</strong> pour chaque élément. Les photos sont automatiquement horodatées.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>🚪 État des lieux de sortie</h3>
+              <p style={{ marginBottom: 12 }}>Cliquez sur <strong>« Copier les éléments depuis l'état d'entrée »</strong> pour reprendre la base de l'entrée. Modifiez les états qui ont changé — l'app affiche automatiquement les comparaisons (dégradation ↓ / amélioration ↑). Ajoutez des photos pour justifier chaque changement.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>📄 Export PDF</h3>
+              <p style={{ marginBottom: 12 }}>Cliquez <strong>📄 PDF</strong> pour générer un document complet avec tous les états, commentaires, photos et signatures. Le PDF de sortie inclut la comparaison avec l'entrée.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>✍️ Signatures</h3>
+              <p style={{ marginBottom: 12 }}>Dans <strong>✍️ Signatures</strong>, le bailleur et le locataire signent directement sur l'écran. Les signatures apparaissent dans le PDF.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>🗄️ Archivage</h3>
+              <p style={{ marginBottom: 12 }}>Une fois un EDL finalisé (✅), cliquez <strong>🗄️ Archiver</strong> pour le sauvegarder avec sa date dans les Archives. L'onglet se réinitialise pour un prochain EDL. Les archives restent consultables et exportables en PDF.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>📁 Dossier</h3>
+              <p style={{ marginBottom: 12 }}>Stockez les documents liés au logement : contrats, diagnostics, photos supplémentaires, etc.</p>
+
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.pri, marginBottom: 6 }}>💡 Astuces</h3>
+              <p style={{ marginBottom: 4 }}>• Les <strong>flèches ▲▼</strong> à gauche des pièces permettent de les réordonner</p>
+              <p style={{ marginBottom: 4 }}>• La <strong>barre de progression</strong> indique les éléments renseignés par pièce</p>
+              <p style={{ marginBottom: 4 }}>• Toutes les données sont <strong>sauvegardées automatiquement</strong></p>
+              <p style={{ marginBottom: 4 }}>• Sur mobile : ajoutez l'app à votre écran d'accueil pour un accès rapide</p>
+            </div>
+
+            <button onClick={() => setShowHelp(false)} style={{ ...btnS(C.pri, "#fff"), width: "100%", marginTop: 16, padding: 12 }}>Compris !</button>
+          </div>
+        </div>
+      )}
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px 40px" }}>
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
