@@ -374,7 +374,7 @@ export default function App() {
                 )}
               </div>
             ))}
-
+            <button onClick={addProp} style={{ padding: "7px 12px", borderRadius: "8px 8px 0 0", border: "none", background: "transparent", color: "rgba(255,255,255,.45)", fontSize: 16, cursor: "pointer" }} title="Ajouter un logement">+</button>
           </div>
         </div>
       </header>
