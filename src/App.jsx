@@ -126,12 +126,13 @@ const btnS = (bg, color, border) => ({ padding: "8px 16px", borderRadius: 8, bor
 
 function Photos({ photos, onChange }) {
   const ref = useRef();
-  const add = (e) => { Array.from(e.target.files).forEach(f => { const r = new FileReader(); r.onload = ev => onChange([...photos, { id: uid(), data: ev.target.result }]); r.readAsDataURL(f); }); e.target.value = ""; };
+  const add = (e) => { const now = new Date(); const ts = now.toLocaleDateString("fr-FR") + " " + now.toLocaleTimeString("fr-FR", {hour:"2-digit",minute:"2-digit"}); Array.from(e.target.files).forEach(f => { const r = new FileReader(); r.onload = ev => onChange([...photos, { id: uid(), data: ev.target.result, timestamp: ts }]); r.readAsDataURL(f); }); e.target.value = ""; };
   return (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
       {photos.map(p => (
-        <div key={p.id} style={{ position: "relative", width: 56, height: 56, borderRadius: 6, overflow: "hidden", border: "1px solid " + C.brd }}>
+        <div key={p.id} style={{ position: "relative", width: 56, height: 56, borderRadius: 6, overflow: "hidden", border: "1px solid " + C.brd }} title={p.timestamp || ""}>
           <img src={p.data} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          {p.timestamp && <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 7, textAlign: "center", padding: "1px 0", lineHeight: 1.2 }}>{p.timestamp}</div>}
           <button onClick={() => onChange(photos.filter(x => x.id !== p.id))} style={{ position: "absolute", top: 2, right: 2, width: 16, height: 16, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.55)", color: "#fff", fontSize: 9, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
         </div>
       ))}
@@ -381,7 +382,7 @@ export default function App() {
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px 40px" }}>
         <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
-          {[["entree", "🔑 Entrée"], ["sortie", "🚪 Sortie"], ["dossier", "📁 Dossier"]].map(([k, l]) => (
+          {[["entree", "🔑 Entrée"], ["sortie", "🚪 Sortie"], ["dossier", "📁 Dossier"], ["archives", "🗄️ Archives"]].map(([k, l]) => (
             <button key={k} onClick={() => { setTab(k); setRi(null); setPanel(null); }}
               style={{ padding: "8px 16px", borderRadius: 20, border: "1.5px solid " + (tab === k ? C.pri : C.brd), background: tab === k ? C.pri + "0d" : "transparent", color: tab === k ? C.pri : C.mut, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
           ))}
@@ -410,7 +411,36 @@ export default function App() {
 
         {tab === "dossier" && <DocMgr docs={p.documents} onChange={d => uProp({ documents: d })} />}
 
-        {insp && tab !== "dossier" && ri === null && (
+        {tab === "archives" && (
+          <div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, marginBottom: 14 }}>🗄️ Archives</h3>
+            {(!p.archives || p.archives.length === 0) && (
+              <div style={{ ...cS, textAlign: "center", padding: 36, color: C.mut }}>
+                <div style={{ fontSize: 28, marginBottom: 6 }}>🗄️</div>
+                <p style={{ fontSize: 13 }}>Aucun état des lieux archivé.<br/>Finalisez un EDL puis cliquez « Archiver ».</p>
+              </div>
+            )}
+            {(p.archives || []).map((arch, ai) => (
+              <div key={arch.id} style={{ ...cS, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: 8, background: arch.type === "entree" ? "#e8f5ec" : "#eaeff5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>
+                    {arch.type === "entree" ? "🔑" : "🚪"}
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{arch.type === "entree" ? "Entrée" : "Sortie"} — {arch.date}</div>
+                    <div style={{ fontSize: 11, color: C.mut }}>Archivé le {arch.archivedAt} · {arch.data.rooms ? arch.data.rooms.length + " pièces" : ""}</div>
+                  </div>
+                  <button onClick={() => { const w = window.open("", "_blank"); w.document.write(genPDF(p, arch.data, arch.type === "sortie" ? p.entree : null)); w.document.close(); setTimeout(() => w.print(), 600); }}
+                    style={btnS(C.pri, "#fff")}>📄</button>
+                  <button onClick={() => { if (confirm("Supprimer cette archive ?")) uProp({ archives: (p.archives || []).filter((_, i) => i !== ai) }); }}
+                    style={{ background: "none", border: "none", color: C.mut, cursor: "pointer", fontSize: 14 }}>🗑️</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {insp && tab !== "dossier" && tab !== "archives" && ri === null && (
           <>
             <div style={{ ...cS, display: "flex", alignItems: "center", gap: 10, padding: "12px 16px" }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: C.mut }}>Date</label>
@@ -431,7 +461,8 @@ export default function App() {
               const deg = room.elements.some(e => e.etat === "Dégradé" || e.etat === "Hors service");
               const nf = room.elements.filter(e => !e.fonctionnel).length;
               const ph = room.elements.reduce((s, e) => s + e.photos.length, 0);
-              // Count changes vs entree
+              const filled = room.elements.filter(e => e.comment || e.photos.length > 0).length;
+              const pct = room.elements.length > 0 ? Math.round((filled / room.elements.length) * 100) : 0;
               let changes = 0;
               if (tab === "sortie" && entreeData) {
                 room.elements.forEach(el => {
@@ -439,19 +470,31 @@ export default function App() {
                   if (ee && ee.etat !== el.etat) changes++;
                 });
               }
+              const moveRoom = (from, to) => { const rs = [...insp.rooms]; const tmp = rs[from]; rs[from] = rs[to]; rs[to] = tmp; uInsp({ rooms: rs }); };
               return (
-                <div key={room.id} onClick={() => setRi(idx)} style={{ ...cS, cursor: "pointer", display: "flex", alignItems: "center", gap: 12, padding: "12px 16px" }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13.5 }}>{room.name}</div>
-                    <div style={{ fontSize: 11, color: C.mut, marginTop: 2, display: "flex", gap: 8 }}>
-                      <span>{room.elements.length} éléments</span>
-                      {ph > 0 && <span>📷 {ph}</span>}
-                      {nf > 0 && <span style={{ color: C.dan }}>⚠ {nf} HS</span>}
-                      {changes > 0 && <span style={{ color: C.warn }}>↕ {changes} modif.</span>}
+                <div key={room.id} style={{ ...cS, padding: "12px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                      <button disabled={idx === 0} onClick={(e) => { e.stopPropagation(); moveRoom(idx, idx - 1); }}
+                        style={{ background: "none", border: "none", color: idx === 0 ? C.light : C.mut, cursor: idx === 0 ? "default" : "pointer", fontSize: 10, padding: 0, lineHeight: 1 }}>▲</button>
+                      <button disabled={idx === insp.rooms.length - 1} onClick={(e) => { e.stopPropagation(); moveRoom(idx, idx + 1); }}
+                        style={{ background: "none", border: "none", color: idx === insp.rooms.length - 1 ? C.light : C.mut, cursor: idx === insp.rooms.length - 1 ? "default" : "pointer", fontSize: 10, padding: 0, lineHeight: 1 }}>▼</button>
                     </div>
+                    <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setRi(idx)}>
+                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{room.name}</div>
+                      <div style={{ fontSize: 11, color: C.mut, marginTop: 2, display: "flex", gap: 8 }}>
+                        <span>{filled}/{room.elements.length}</span>
+                        {ph > 0 && <span>📷 {ph}</span>}
+                        {nf > 0 && <span style={{ color: C.dan }}>⚠ {nf} HS</span>}
+                        {changes > 0 && <span style={{ color: C.warn }}>↕ {changes} modif.</span>}
+                      </div>
+                      <div style={{ marginTop: 4, height: 4, borderRadius: 2, background: C.light }}>
+                        <div style={{ height: "100%", borderRadius: 2, background: pct === 100 ? C.acc : C.pri, width: pct + "%", transition: "width .3s" }} />
+                      </div>
+                    </div>
+                    {deg && <span style={{ fontSize: 16 }}>⚠️</span>}
+                    <span style={{ color: C.mut, fontSize: 14, cursor: "pointer" }} onClick={() => setRi(idx)}>›</span>
                   </div>
-                  {deg && <span style={{ fontSize: 16 }}>⚠️</span>}
-                  <span style={{ color: C.mut, fontSize: 14 }}>›</span>
                 </div>
               );
             })}
@@ -464,6 +507,7 @@ export default function App() {
               <div style={{ flex: 1 }} />
               <button onClick={printPDF} style={btnS(C.pri, "#fff")}>📄 PDF</button>
               <button onClick={() => uInsp({ completed: true })} style={btnS(C.acc, "#fff")}>✅ Finaliser</button>
+              {insp.completed && <button onClick={() => { const arch = { id: uid(), type: insp.type, date: insp.date, archivedAt: new Date().toISOString().slice(0,10), data: JSON.parse(JSON.stringify(insp)) }; uProp({ archives: [...(p.archives || []), arch] }); uInsp({ ...blankInsp(insp.type) }); }} style={btnS("#6b5b95", "#fff")}>🗄️ Archiver</button>}
             </div>
 
             {panel === "releves" && (
