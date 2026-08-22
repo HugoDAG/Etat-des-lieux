@@ -348,7 +348,7 @@ export default function App() {
       <header style={{ background: "linear-gradient(135deg, " + C.pri + " 0%, #264d73 100%)", color: "#fff", padding: "20px 20px 0" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
-            <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 H2A Gestion</h1>
+            <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
             {saving && <span style={{ fontSize: 11, opacity: 0.6 }}>💾 Sauvegarde…</span>}
           </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
@@ -369,7 +369,7 @@ export default function App() {
                 )}
               </div>
             ))}
-            {props.length < 5 && <button onClick={addProp} style={{ padding: "7px 12px", borderRadius: "8px 8px 0 0", border: "none", background: "transparent", color: "rgba(255,255,255,.45)", fontSize: 16, cursor: "pointer" }}>+</button>}
+
           </div>
         </div>
       </header>
