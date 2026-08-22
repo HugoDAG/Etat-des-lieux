@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { supabase } from "./supabaseClient";
 
 const uid = () => Math.random().toString(36).slice(2, 10);
 const today = () => new Date().toISOString().slice(0, 10);
@@ -73,16 +74,12 @@ const ROOM_TEMPLATES = {
 };
 
 const DEFAULT_ROOMS = ["Entrée", "Séjour", "Cuisine", "Chambre", "Salle de bain", "WC", "Couloir", "Extérieur"];
-
 const makeEl = (cat, type) => ({ id: uid(), cat, type, etat: "Bon état", comment: "", photos: [], fonctionnel: true });
-
 const makeRoom = (name) => {
   const key = Object.keys(ROOM_TEMPLATES).find(k => name.toLowerCase().includes(k.toLowerCase()))
     || (name.toLowerCase().includes("chambre") ? "Chambre" : name.toLowerCase().includes("sdb") ? "Salle de bain" : null);
-  const tpl = ROOM_TEMPLATES[key] || ROOM_TEMPLATES["Séjour"];
-  return { id: uid(), name, elements: tpl.map(e => makeEl(e.cat, e.type)) };
+  return { id: uid(), name, elements: (ROOM_TEMPLATES[key] || ROOM_TEMPLATES["Séjour"]).map(e => makeEl(e.cat, e.type)) };
 };
-
 const blankInsp = (type) => ({
   id: uid(), type, date: today(), comments: "",
   rooms: DEFAULT_ROOMS.map(makeRoom),
@@ -91,9 +88,8 @@ const blankInsp = (type) => ({
   cles: { principale: "", dependance: "", pompe: "", bal: "" },
   completed: false,
 });
-
 const blankProp = (n) => ({
-  id: uid(), name: n || "", address: "", designation: "", owner: "", ownerAddress: "", ownerEmail: "",
+  name: n || "", address: "", designation: "", owner: "", ownerAddress: "", ownerEmail: "",
   tenant: "", tenantEmail: "", tenantTel: "",
   entree: blankInsp("entree"), sortie: blankInsp("sortie"), documents: [],
 });
@@ -204,41 +200,114 @@ function DocMgr({ docs, onChange }) {
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════ */
+/* MAIN APP                                                       */
+/* ═══════════════════════════════════════════════════════════════ */
 export default function App() {
-  const [props, setProps] = useState([blankProp("Logement 1")]);
+  const [props, setProps] = useState([]);
   const [pi, setPi] = useState(0);
   const [tab, setTab] = useState("entree");
   const [ri, setRi] = useState(null);
   const [panel, setPanel] = useState(null);
   const [editingName, setEditingName] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const nameRef = useRef();
+  const saveTimer = useRef(null);
+
+  /* ── Load from Supabase ──────────────────────────────────── */
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("edl_properties").select("*").order("created_at");
+      if (data && data.length > 0) {
+        setProps(data.map(d => ({ ...d, entree: d.entree || blankInsp("entree"), sortie: d.sortie || blankInsp("sortie"), documents: d.documents || [] })));
+      } else {
+        // Premier lancement : créer un logement par défaut
+        const def = blankProp("Logement 1");
+        const { data: inserted } = await supabase.from("edl_properties").insert(def).select().single();
+        if (inserted) setProps([{ ...inserted, entree: inserted.entree || blankInsp("entree"), sortie: inserted.sortie || blankInsp("sortie"), documents: inserted.documents || [] }]);
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  /* ── Auto-save with debounce ─────────────────────────────── */
+  const saveToSupabase = useCallback(async (properties) => {
+    setSaving(true);
+    for (const p of properties) {
+      const { id, created_at, ...rest } = p;
+      await supabase.from("edl_properties").update({ ...rest, updated_at: new Date().toISOString() }).eq("id", id);
+    }
+    setSaving(false);
+  }, []);
+
+  const debouncedSave = useCallback((properties) => {
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => saveToSupabase(properties), 1500);
+  }, [saveToSupabase]);
+
+  const updateProps = (newProps) => {
+    setProps(newProps);
+    debouncedSave(newProps);
+  };
 
   const p = props[pi] || props[0];
-  const insp = tab === "entree" ? p.entree : tab === "sortie" ? p.sortie : null;
+  const insp = p ? (tab === "entree" ? p.entree : tab === "sortie" ? p.sortie : null) : null;
 
-  const uProp = (patch) => setProps(ps => ps.map((x, i) => i === pi ? { ...x, ...patch } : x));
+  const uProp = (patch) => { const np = props.map((x, i) => i === pi ? { ...x, ...patch } : x); updateProps(np); };
   const uInsp = (patch) => uProp({ [tab]: { ...insp, ...patch } });
   const uRoom = (idx, fn) => uInsp({ rooms: insp.rooms.map((r, i) => i === idx ? fn(r) : r) });
   const uEl = (rIdx, eIdx, patch) => uRoom(rIdx, r => ({ ...r, elements: r.elements.map((e, i) => i === eIdx ? { ...e, ...patch } : e) }));
 
-  const addProp = () => { if (props.length >= 5) return; setProps([...props, blankProp("Logement " + (props.length + 1))]); setPi(props.length); setTab("entree"); setRi(null); };
-  const delProp = () => { if (props.length <= 1) return; setProps(props.filter((_, i) => i !== pi)); setPi(Math.max(0, pi - 1)); setRi(null); };
+  const addProp = async () => {
+    if (props.length >= 5) return;
+    const def = blankProp("Logement " + (props.length + 1));
+    const { data } = await supabase.from("edl_properties").insert(def).select().single();
+    if (data) {
+      const np = [...props, { ...data, entree: data.entree || blankInsp("entree"), sortie: data.sortie || blankInsp("sortie"), documents: data.documents || [] }];
+      setProps(np);
+      setPi(np.length - 1);
+      setTab("entree"); setRi(null);
+    }
+  };
+
+  const delProp = async () => {
+    if (props.length <= 1) return;
+    await supabase.from("edl_properties").delete().eq("id", p.id);
+    const np = props.filter((_, i) => i !== pi);
+    setProps(np);
+    setPi(Math.max(0, pi - 1)); setRi(null);
+  };
 
   const printPDF = () => { if (!insp) return; const w = window.open("", "_blank"); w.document.write(genPDF(p, insp)); w.document.close(); setTimeout(() => w.print(), 400); };
 
   useEffect(() => { if (editingName !== null && nameRef.current) nameRef.current.focus(); }, [editingName]);
 
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: C.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Inter',system-ui,sans-serif" }}>
+      <div style={{ textAlign: "center", color: C.mut }}>
+        <div style={{ fontSize: 36, marginBottom: 12 }}>📋</div>
+        <p>Chargement…</p>
+      </div>
+    </div>
+  );
+
+  if (!p) return null;
+
   return (
     <div style={{ minHeight: "100vh", background: C.bg, fontFamily: "'Inter','Segoe UI',system-ui,sans-serif", color: C.txt }}>
       <header style={{ background: "linear-gradient(135deg, " + C.pri + " 0%, #264d73 100%)", color: "#fff", padding: "20px 20px 0" }}>
         <div style={{ maxWidth: 720, margin: "0 auto" }}>
-          <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 14, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+            <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
+            {saving && <span style={{ fontSize: 11, opacity: 0.6 }}>💾 Sauvegarde…</span>}
+          </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
             {props.map((pr, i) => (
               <div key={pr.id}>
                 {editingName === i ? (
                   <input ref={nameRef} value={pr.name}
-                    onChange={e => setProps(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+                    onChange={e => { const np = props.map((x, j) => j === i ? { ...x, name: e.target.value } : x); updateProps(np); }}
                     onBlur={() => setEditingName(null)} onKeyDown={e => { if (e.key === "Enter") setEditingName(null); }}
                     style={{ padding: "7px 12px", borderRadius: "8px 8px 0 0", border: "none", background: "rgba(255,255,255,.15)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", outline: "none", width: 140 }} />
                 ) : (
@@ -414,9 +483,9 @@ function genPDF(p, insp) {
   let h = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>EDL - ' + p.name + '</title><style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:Arial,sans-serif;font-size:11px;color:#1a2233;padding:36px}h1{font-size:18px;color:#1b3a5c;margin-bottom:2px}h2{font-size:13px;margin:16px 0 6px;border-bottom:1.5px solid #dde2e8;padding-bottom:3px}h3{font-size:10px;color:#7a8694;text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px}table{width:100%;border-collapse:collapse;margin-bottom:10px}th,td{padding:4px 6px;border-bottom:1px solid #eef1f5;text-align:left;font-size:10px}th{font-weight:600;background:#f5f6f8}.sig{max-height:55px;margin-top:3px}.nf{color:#c0392b;font-weight:700}@media print{body{padding:20px}}</style></head><body>';
   h += '<h1>ÉTAT DES LIEUX ' + (insp.type === "entree" ? "D\'ENTRÉE" : "DE SORTIE") + '</h1>';
   h += '<p style="color:#7a8694;margin-bottom:10px">À annexer au contrat de location</p>';
-  h += '<table><tr><td style="width:50%;vertical-align:top;border:none"><strong>Bailleur</strong><br/>' + p.owner + '<br/>' + p.ownerAddress + '<br/>' + p.ownerEmail + '</td>';
-  h += '<td style="vertical-align:top;border:none"><strong>Locataire</strong><br/>' + p.tenant + '<br/>' + p.tenantEmail + '<br/>' + p.tenantTel + '</td></tr></table>';
-  h += '<p><strong>Bien :</strong> ' + p.address + ' — ' + p.designation + ' &nbsp; <strong>Date :</strong> ' + insp.date + '</p>';
+  h += '<table><tr><td style="width:50%;vertical-align:top;border:none"><strong>Bailleur</strong><br/>' + (p.owner||"—") + '<br/>' + (p.owner_address||p.ownerAddress||"") + '<br/>' + (p.owner_email||p.ownerEmail||"") + '</td>';
+  h += '<td style="vertical-align:top;border:none"><strong>Locataire</strong><br/>' + (p.tenant||"—") + '<br/>' + (p.tenant_email||p.tenantEmail||"") + '<br/>' + (p.tenant_tel||p.tenantTel||"") + '</td></tr></table>';
+  h += '<p><strong>Bien :</strong> ' + (p.address||"—") + ' — ' + (p.designation||"") + ' &nbsp; <strong>Date :</strong> ' + insp.date + '</p>';
   insp.rooms.forEach(r => {
     h += '<h2>' + r.name + '</h2>';
     [...new Set(r.elements.map(e => e.cat))].forEach(cat => {
@@ -427,8 +496,8 @@ function genPDF(p, insp) {
       h += '</table>';
     });
   });
-  if (insp.releves.edfNum) h += '<h2>Relevés</h2><p>EDF N°' + insp.releves.edfNum + ' HC:' + insp.releves.edfHC + ' HP:' + insp.releves.edfHP + ' · Eau N°' + insp.releves.eauNum + ' : ' + insp.releves.eauReleve + '</p>';
-  if (insp.cles.principale) h += '<h2>Clés</h2><p>Principale: ' + insp.cles.principale + ' · Dép.: ' + insp.cles.dependance + ' · PAC: ' + insp.cles.pompe + ' · BAL: ' + insp.cles.bal + '</p>';
+  if (insp.releves && insp.releves.edfNum) h += '<h2>Relevés</h2><p>EDF N°' + insp.releves.edfNum + ' HC:' + insp.releves.edfHC + ' HP:' + insp.releves.edfHP + ' · Eau N°' + insp.releves.eauNum + ' : ' + insp.releves.eauReleve + '</p>';
+  if (insp.cles && insp.cles.principale) h += '<h2>Clés</h2><p>Principale: ' + insp.cles.principale + ' · Dép.: ' + insp.cles.dependance + ' · PAC: ' + insp.cles.pompe + ' · BAL: ' + insp.cles.bal + '</p>';
   if (insp.comments) h += '<h2>Observations</h2><p>' + insp.comments + '</p>';
   if (insp.signatureOwner || insp.signatureTenant) {
     h += '<h2>Signatures</h2><p style="font-size:9px;color:#7a8694">« Lu et approuvé »</p><div style="display:flex;gap:40px">';
