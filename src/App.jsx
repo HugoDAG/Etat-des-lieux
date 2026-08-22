@@ -352,6 +352,7 @@ export default function App() {
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
             <h1 style={{ fontSize: 18, fontWeight: 700, flex: 1, letterSpacing: "-0.3px" }}>📋 État des lieux</h1>
             {saving && <span style={{ fontSize: 11, opacity: 0.6 }}>💾 Sauvegarde…</span>}
+            <button onClick={() => setPanel(panel === "info" ? null : "info")} style={{ background: panel === "info" ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.15)", border: "none", color: "#fff", width: 28, height: 28, borderRadius: "50%", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>⚙️</button>
             <button onClick={() => setShowHelp(true)} style={{ background: "rgba(255,255,255,.15)", border: "none", color: "#fff", width: 28, height: 28, borderRadius: "50%", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>?</button>
           </div>
           <div style={{ display: "flex", gap: 2, alignItems: "end", overflowX: "auto" }}>
@@ -427,14 +428,11 @@ export default function App() {
       )}
 
       <div style={{ maxWidth: 720, margin: "0 auto", padding: "16px 20px 40px" }}>
-        <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", gap: 6, marginBottom: 20, overflowX: "auto" }}>
           {[["entree", "🔑 Entrée"], ["sortie", "🚪 Sortie"], ["dossier", "📁 Dossier"], ["archives", "🗄️ Archives"]].map(([k, l]) => (
             <button key={k} onClick={() => { setTab(k); setRi(null); setPanel(null); }}
-              style={{ padding: "8px 16px", borderRadius: 20, border: "1.5px solid " + (tab === k ? C.pri : C.brd), background: tab === k ? C.pri + "0d" : "transparent", color: tab === k ? C.pri : C.mut, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>{l}</button>
+              style={{ padding: "8px 16px", borderRadius: 20, border: "1.5px solid " + (tab === k ? C.pri : C.brd), background: tab === k ? C.pri + "0d" : "transparent", color: tab === k ? C.pri : C.mut, fontWeight: 600, fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>{l}</button>
           ))}
-          <div style={{ flex: 1 }} />
-          <button onClick={() => setPanel(panel === "info" ? null : "info")}
-            style={{ padding: "8px 12px", borderRadius: 20, border: "1.5px solid " + (panel === "info" ? C.pri : C.brd), background: panel === "info" ? C.pri + "0d" : "transparent", color: panel === "info" ? C.pri : C.mut, fontWeight: 500, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>⚙️</button>
         </div>
 
         {panel === "info" && (
