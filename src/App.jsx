@@ -525,7 +525,11 @@ export default function App() {
                         style={{ background: "none", border: "none", color: idx === insp.rooms.length - 1 ? C.light : C.mut, cursor: idx === insp.rooms.length - 1 ? "default" : "pointer", fontSize: 10, padding: 0, lineHeight: 1 }}>▼</button>
                     </div>
                     <div style={{ flex: 1, cursor: "pointer" }} onClick={() => setRi(idx)}>
-                      <div style={{ fontWeight: 600, fontSize: 13.5 }}>{room.name}</div>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <span style={{ fontWeight: 600, fontSize: 13.5 }}>{room.name}</span>
+                        <button onClick={(e) => { e.stopPropagation(); const n = prompt("Nom de la pièce :", room.name); if (n !== null && n.trim()) uRoom(idx, r => ({ ...r, name: n.trim() })); }}
+                          style={{ background: "none", border: "none", color: C.mut, cursor: "pointer", fontSize: 12, padding: "0 2px", opacity: 0.6 }} title="Renommer">✏️</button>
+                      </div>
                       <div style={{ fontSize: 11, color: C.mut, marginTop: 2, display: "flex", gap: 8 }}>
                         <span>{filled}/{room.elements.length}</span>
                         {ph > 0 && <span>📷 {ph}</span>}
