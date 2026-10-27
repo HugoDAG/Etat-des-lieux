@@ -5,6 +5,50 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 const today = () => new Date().toISOString().slice(0, 10);
 const now = () => new Date().toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 
+const SUPABASE_URL = "https://ygqhgmfpvsmephhvynwy.supabase.co";
+const STORAGE_BUCKET = "edl-photos";
+
+/* Compress image: max 1200px, JPEG 70% quality, add timestamp overlay */
+function compressImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1200;
+        let w = img.width, h = img.height;
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+          else { w = Math.round(w * MAX / h); h = MAX; }
+        }
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        const ctx = c.getContext("2d");
+        ctx.drawImage(img, 0, 0, w, h);
+        // Timestamp overlay
+        const barH = Math.max(24, h * 0.035);
+        ctx.fillStyle = "rgba(0,0,0,.55)";
+        ctx.fillRect(0, h - barH, w, barH);
+        ctx.fillStyle = "#fff";
+        ctx.font = Math.round(barH * 0.55) + "px Arial";
+        ctx.fillText(now(), 8, h - barH * 0.28);
+        c.toBlob((blob) => resolve(blob), "image/jpeg", 0.70);
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* Upload compressed blob to Supabase Storage, return public URL */
+async function uploadPhoto(blob) {
+  const name = `photo_${Date.now()}_${uid()}.jpg`;
+  const path = name;
+  const { error } = await supabase.storage.from(STORAGE_BUCKET).upload(path, blob, { contentType: "image/jpeg", upsert: false });
+  if (error) { console.error("Upload error:", error); return null; }
+  return `${SUPABASE_URL}/storage/v1/object/public/${STORAGE_BUCKET}/${path}`;
+}
+
 const ETATS = ["Neuf", "Très bon état", "Bon état", "Usage normal", "Dégradé", "Hors service"];
 const ETAT_COLORS = {
   "Neuf": "#2563eb", "Très bon état": "#059669", "Bon état": "#16a34a",
@@ -146,37 +190,33 @@ const divider = { border: "none", borderTop: "1px solid " + T.brd, margin: "16px
 
 function Photos({ photos, onChange }) {
   const ref = useRef();
-  const add = (e) => {
-    Array.from(e.target.files).forEach(f => {
-      const r = new FileReader();
-      r.onload = ev => {
-        const img = new Image();
-        img.onload = () => {
-          const c = document.createElement("canvas");
-          c.width = img.width; c.height = img.height;
-          const ctx = c.getContext("2d");
-          ctx.drawImage(img, 0, 0);
-          ctx.fillStyle = "rgba(0,0,0,.55)";
-          ctx.fillRect(0, img.height - 28, img.width, 28);
-          ctx.fillStyle = "#fff"; ctx.font = "13px Arial";
-          ctx.fillText(now(), 8, img.height - 9);
-          onChange([...photos, { id: uid(), data: c.toDataURL("image/jpeg", 0.85) }]);
-        };
-        img.src = ev.target.result;
-      };
-      r.readAsDataURL(f);
-    });
+  const [uploading, setUploading] = useState(false);
+  const add = async (e) => {
+    const files = Array.from(e.target.files);
     e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    const newPhotos = [...photos];
+    for (const f of files) {
+      const blob = await compressImage(f);
+      const url = await uploadPhoto(blob);
+      if (url) newPhotos.push({ id: uid(), url });
+    }
+    onChange(newPhotos);
+    setUploading(false);
   };
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
       {photos.map(p => (
         <div key={p.id} style={{ position: "relative", width: 64, height: 64, borderRadius: T.radiusSm, overflow: "hidden", border: "1px solid " + T.brd }}>
-          <img src={p.data} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={p.url || p.data} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
           <button onClick={() => onChange(photos.filter(x => x.id !== p.id))} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>×</button>
         </div>
       ))}
-      <button onClick={() => ref.current.click()} style={{ width: 64, height: 64, borderRadius: T.radiusSm, border: "2px dashed " + T.brd, background: "transparent", cursor: "pointer", fontSize: 20, color: T.mut, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s" }}>
+      {uploading && <div style={{ width: 64, height: 64, borderRadius: T.radiusSm, border: "1px solid " + T.brd, display: "flex", alignItems: "center", justifyContent: "center", background: T.priLight }}>
+        <span style={{ fontSize: 11, color: T.pri, fontWeight: 500 }}>…</span>
+      </div>}
+      <button onClick={() => ref.current.click()} disabled={uploading} style={{ width: 64, height: 64, borderRadius: T.radiusSm, border: "2px dashed " + T.brd, background: "transparent", cursor: "pointer", fontSize: 20, color: T.mut, display: "flex", alignItems: "center", justifyContent: "center", transition: "all .15s", opacity: uploading ? 0.5 : 1 }}>
         <span style={{ fontSize: 13, fontWeight: 500 }}>+ Photo</span>
       </button>
       <input ref={ref} type="file" accept="image/*" multiple capture="environment" hidden onChange={add} />
@@ -890,7 +930,7 @@ th{font-weight:700;background:#f3f4f6;color:#374151}
       const photosInCat = r.elements.filter(e => e.cat === cat).flatMap(e => e.photos);
       if (photosInCat.length > 0) {
         h += '<div style="margin-bottom:8px">';
-        photosInCat.forEach(ph => { h += '<img src="' + ph.data + '" class="photo"/>'; });
+        photosInCat.forEach(ph => { h += '<img src="' + (ph.url || ph.data) + '" class="photo"/>'; });
         h += '</div>';
       }
     });
