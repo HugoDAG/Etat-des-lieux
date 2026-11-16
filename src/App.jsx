@@ -493,6 +493,9 @@ export default function App() {
     setPi(props.length); setTab("entree"); setRi(null); setPanel(null);
   };
 
+  /* Archive search */
+  const [archiveSearch, setArchiveSearch] = useState("");
+
   const delProp = () => {
     if (props.length <= 1) return;
     setConfirm({
@@ -650,20 +653,48 @@ export default function App() {
                 <p style={{ fontSize: 14, fontWeight: 500, marginBottom: 4 }}>Aucune archive</p>
                 <p style={{ fontSize: 12 }}>Les EDL finalisés apparaîtront ici</p>
               </div>
-            ) : p.archives.map(a => (
-              <div key={a.id} style={{ ...card, padding: 16 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <div>
-                    <div style={{ fontWeight: 700, fontSize: 14, color: T.txt }}>EDL archivé</div>
-                    <div style={{ fontSize: 12, color: T.mut, marginTop: 2 }}>{a.date}</div>
-                  </div>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => { const w = window.open("", "_blank"); w.document.write(genPDF(p, a.entree, null)); w.document.close(); setTimeout(() => w.print(), 400); }} style={{ ...btnSmall, ...btnSec }}>PDF Entrée</button>
-                    <button onClick={() => { const w = window.open("", "_blank"); w.document.write(genPDF(p, a.sortie, a.entree)); w.document.close(); setTimeout(() => w.print(), 400); }} style={{ ...btnSmall, ...btnSec }}>PDF Sortie</button>
-                  </div>
+            ) : (() => {
+              const q = archiveSearch.toLowerCase().trim();
+              const filtered = p.archives.filter(a => {
+                if (!q) return true;
+                const dateStr = (a.date || "").toLowerCase();
+                const tenantName = ((a.entree?.tenant || "") + " " + (a.sortie?.tenant || "")).toLowerCase();
+                const tenantEmail = ((a.entree?.tenantEmail || "") + " " + (a.sortie?.tenantEmail || "")).toLowerCase();
+                return dateStr.includes(q) || tenantName.includes(q) || tenantEmail.includes(q);
+              });
+              return <>
+                <div style={{ ...card, padding: 12, marginBottom: 12 }}>
+                  <input
+                    type="text"
+                    placeholder="🔍 Rechercher par date ou locataire..."
+                    value={archiveSearch}
+                    onChange={e => setArchiveSearch(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", border: `1px solid ${T.brd}`, borderRadius: 8, fontSize: 14, outline: "none", background: T.bg, color: T.txt, boxSizing: "border-box" }}
+                  />
                 </div>
-              </div>
-            ))}
+                {filtered.length === 0 ? (
+                  <div style={{ ...card, textAlign: "center", padding: 32, color: T.mut }}>
+                    <p style={{ fontSize: 14 }}>Aucun résultat pour "{archiveSearch}"</p>
+                  </div>
+                ) : filtered.map(a => (
+                  <div key={a.id} style={{ ...card, padding: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: 14, color: T.txt }}>EDL archivé</div>
+                        <div style={{ fontSize: 12, color: T.mut, marginTop: 2 }}>{a.date}</div>
+                        {(a.entree?.tenant || a.sortie?.tenant) && (
+                          <div style={{ fontSize: 12, color: T.mut, marginTop: 1 }}>{a.entree?.tenant || a.sortie?.tenant}</div>
+                        )}
+                      </div>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => { const w = window.open("", "_blank"); w.document.write(genPDF(p, a.entree, null)); w.document.close(); setTimeout(() => w.print(), 400); }} style={{ ...btnSmall, ...btnSec }}>PDF Entrée</button>
+                        <button onClick={() => { const w = window.open("", "_blank"); w.document.write(genPDF(p, a.sortie, a.entree)); w.document.close(); setTimeout(() => w.print(), 400); }} style={{ ...btnSmall, ...btnSec }}>PDF Sortie</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </>;
+            })()}
           </div>
         )}
 
