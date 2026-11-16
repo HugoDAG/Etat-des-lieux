@@ -147,44 +147,60 @@ const blankProp = (n) => ({
 
 /* ── Design tokens ── */
 const T = {
-  bg: "#f0f2f5",
+  bg: "#f4f6fa",
   card: "#ffffff",
-  pri: "#1b3a5c",
-  priLight: "#e8edf3",
-  priHover: "#244b72",
-  acc: "#16a34a",
-  accLight: "#dcfce7",
-  txt: "#111827",
-  sub: "#4b5563",
-  mut: "#9ca3af",
-  brd: "#e5e7eb",
+  pri: "#1a365d",
+  priLight: "#edf2f7",
+  priMid: "#2b5797",
+  priHover: "#2d4a7a",
+  acc: "#0d9b5a",
+  accLight: "#d1fae5",
+  txt: "#0f172a",
+  sub: "#475569",
+  mut: "#94a3b8",
+  brd: "#e2e8f0",
   dan: "#dc2626",
   danLight: "#fee2e2",
   warn: "#d97706",
   warnLight: "#fef3c7",
-  shadow: "0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04)",
-  shadowMd: "0 4px 6px rgba(0,0,0,.05), 0 2px 4px rgba(0,0,0,.04)",
-  shadowLg: "0 10px 15px rgba(0,0,0,.05), 0 4px 6px rgba(0,0,0,.04)",
-  radius: 12,
-  radiusSm: 8,
+  shadow: "0 1px 3px rgba(15,23,42,.04), 0 1px 2px rgba(15,23,42,.06)",
+  shadowMd: "0 4px 12px rgba(15,23,42,.06), 0 2px 4px rgba(15,23,42,.04)",
+  shadowLg: "0 12px 28px rgba(15,23,42,.08), 0 4px 10px rgba(15,23,42,.04)",
+  radius: 14,
+  radiusSm: 10,
   font: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
 };
 
+/* ── Global CSS (injected once) ── */
+const GLOBAL_CSS = `
+@keyframes spin { to { transform: rotate(360deg) } }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+.card-hover { transition: transform .18s ease, box-shadow .18s ease; }
+.card-hover:hover { transform: translateY(-1px); box-shadow: ${T.shadowMd}; }
+.btn-hover { transition: all .15s ease; }
+.btn-hover:hover { transform: translateY(-1px); }
+.btn-hover:active { transform: translateY(0) scale(.98); }
+.fade-up { animation: fadeUp .3s ease both; }
+input:focus, textarea:focus, select:focus { border-color: ${T.pri} !important; box-shadow: 0 0 0 3px ${T.pri}18 !important; outline: none; }
+`;
+
 /* ── Reusable styles ── */
-const card = { background: T.card, borderRadius: T.radius, padding: 18, marginBottom: 10, boxShadow: T.shadow, border: "1px solid " + T.brd };
+const card = { background: T.card, borderRadius: T.radius, padding: 18, marginBottom: 12, boxShadow: T.shadow, border: "1px solid " + T.brd };
 const inputStyle = {
   width: "100%", padding: "10px 14px", borderRadius: T.radiusSm, border: "1px solid " + T.brd,
   fontSize: 13, outline: "none", boxSizing: "border-box", fontFamily: "inherit",
   background: "#fff", transition: "border-color .15s, box-shadow .15s",
 };
-const inputFocus = "border-color: " + T.pri + "; box-shadow: 0 0 0 3px " + T.pri + "15;";
+const inputFocus = "border-color: " + T.pri + "; box-shadow: 0 0 0 3px " + T.pri + "18;";
 const btnBase = { border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", transition: "all .15s", borderRadius: T.radiusSm, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 6 };
-const btnPri = { ...btnBase, padding: "10px 20px", background: T.pri, color: "#fff" };
-const btnSec = { ...btnBase, padding: "10px 20px", background: "transparent", color: T.pri, border: "1px solid " + T.brd };
-const btnDan = { ...btnBase, padding: "10px 20px", background: "transparent", color: T.dan, border: "1px solid " + T.dan + "40" };
-const btnSmall = { ...btnBase, padding: "6px 12px", fontSize: 12 };
-const secLabel = { fontSize: 11, fontWeight: 700, color: T.mut, textTransform: "uppercase", letterSpacing: 1.2, marginBottom: 10 };
-const divider = { border: "none", borderTop: "1px solid " + T.brd, margin: "16px 0" };
+const btnPri = { ...btnBase, padding: "10px 20px", background: `linear-gradient(135deg, ${T.pri} 0%, ${T.priMid} 100%)`, color: "#fff" };
+const btnSec = { ...btnBase, padding: "10px 20px", background: "transparent", color: T.pri, border: "1.5px solid " + T.brd };
+const btnDan = { ...btnBase, padding: "10px 20px", background: "transparent", color: T.dan, border: "1.5px solid " + T.dan + "40" };
+const btnSmall = { ...btnBase, padding: "6px 14px", fontSize: 12, borderRadius: 20 };
+const secLabel = { fontSize: 10, fontWeight: 700, color: T.mut, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 10 };
+const divider = { border: "none", borderTop: "1px solid " + T.brd, margin: "18px 0" };
 
 /* ── Components ── */
 
@@ -208,9 +224,9 @@ function Photos({ photos, onChange }) {
   return (
     <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
       {photos.map(p => (
-        <div key={p.id} style={{ position: "relative", width: 64, height: 64, borderRadius: T.radiusSm, overflow: "hidden", border: "1px solid " + T.brd }}>
+        <div key={p.id} style={{ position: "relative", width: 68, height: 68, borderRadius: T.radiusSm, overflow: "hidden", border: "1px solid " + T.brd, boxShadow: "0 1px 3px rgba(0,0,0,.08)" }}>
           <img src={p.url || p.data} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-          <button onClick={() => onChange(photos.filter(x => x.id !== p.id))} style={{ position: "absolute", top: 3, right: 3, width: 18, height: 18, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.6)", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1 }}>×</button>
+          <button onClick={() => onChange(photos.filter(x => x.id !== p.id))} style={{ position: "absolute", top: 3, right: 3, width: 20, height: 20, borderRadius: "50%", border: "none", background: "rgba(0,0,0,.65)", color: "#fff", fontSize: 10, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, backdropFilter: "blur(4px)" }}>×</button>
         </div>
       ))}
       {uploading && <div style={{ width: 64, height: 64, borderRadius: T.radiusSm, border: "1px solid " + T.brd, display: "flex", alignItems: "center", justifyContent: "center", background: T.priLight }}>
@@ -367,11 +383,11 @@ function ChangeBadge({ entreeEl, sortieEl }) {
 
 function HelpModal({ onClose }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: T.shadowLg }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: T.pri }}>Guide d'utilisation</h2>
-          <button onClick={onClose} style={{ ...btnBase, background: T.priLight, color: T.pri, width: 32, height: 32, borderRadius: "50%", fontSize: 16, padding: 0 }}>×</button>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onClose}>
+      <div onClick={e => e.stopPropagation()} className="fade-up" style={{ background: "#fff", borderRadius: 20, padding: 32, maxWidth: 520, width: "100%", maxHeight: "85vh", overflowY: "auto", boxShadow: T.shadowLg }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+          <h2 style={{ fontSize: 19, fontWeight: 800, color: T.pri, letterSpacing: "-0.3px" }}>Guide d'utilisation</h2>
+          <button onClick={onClose} style={{ ...btnBase, background: T.priLight, color: T.pri, width: 34, height: 34, borderRadius: "50%", fontSize: 16, padding: 0 }}>×</button>
         </div>
         {[
           ["🏠 Logements", "Créez plusieurs logements avec le bouton +. Double-cliquez sur un onglet pour renommer. Le × supprime un logement."],
@@ -397,12 +413,13 @@ function HelpModal({ onClose }) {
 
 function ConfirmModal({ message, onConfirm, onCancel }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onCancel}>
-      <div onClick={e => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: 28, maxWidth: 400, width: "100%", boxShadow: T.shadowLg, textAlign: "center" }}>
-        <p style={{ fontSize: 15, fontWeight: 500, marginBottom: 20, color: T.txt }}>{message}</p>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(15,23,42,.6)", backdropFilter: "blur(4px)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }} onClick={onCancel}>
+      <div onClick={e => e.stopPropagation()} className="fade-up" style={{ background: "#fff", borderRadius: 20, padding: 32, maxWidth: 400, width: "100%", boxShadow: T.shadowLg, textAlign: "center" }}>
+        <div style={{ width: 48, height: 48, borderRadius: "50%", background: T.danLight, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", fontSize: 22 }}>⚠️</div>
+        <p style={{ fontSize: 15, fontWeight: 600, marginBottom: 24, color: T.txt, lineHeight: 1.5 }}>{message}</p>
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-          <button onClick={onCancel} style={btnSec}>Annuler</button>
-          <button onClick={onConfirm} style={{ ...btnBase, padding: "10px 20px", background: T.dan, color: "#fff" }}>Confirmer</button>
+          <button onClick={onCancel} className="btn-hover" style={btnSec}>Annuler</button>
+          <button onClick={onConfirm} className="btn-hover" style={{ ...btnBase, padding: "10px 20px", background: T.dan, color: "#fff", boxShadow: "0 2px 8px " + T.dan + "30" }}>Confirmer</button>
         </div>
       </div>
     </div>
@@ -541,10 +558,11 @@ export default function App() {
 
   if (!loaded) return (
     <div style={{ minHeight: "100vh", background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: T.font }}>
+      <style>{GLOBAL_CSS}</style>
       <div style={{ textAlign: "center" }}>
-        <div style={{ width: 40, height: 40, border: "3px solid " + T.brd, borderTopColor: T.pri, borderRadius: "50%", animation: "spin 1s linear infinite", margin: "0 auto 16px" }} />
-        <p style={{ color: T.sub, fontSize: 14 }}>Chargement…</p>
-        <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+        <div style={{ width: 48, height: 48, borderRadius: 16, background: `linear-gradient(135deg, ${T.pri}, ${T.priMid})`, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px", fontSize: 22 }}>🏠</div>
+        <div style={{ width: 36, height: 36, border: "3px solid " + T.brd, borderTopColor: T.pri, borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 14px" }} />
+        <p style={{ color: T.sub, fontSize: 13, fontWeight: 500 }}>Chargement…</p>
       </div>
     </div>
   );
@@ -553,47 +571,51 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, fontFamily: T.font, color: T.txt }}>
+      <style>{GLOBAL_CSS}</style>
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       {confirm && <ConfirmModal message={confirm.message} onConfirm={confirm.action} onCancel={() => setConfirm(null)} />}
 
       {/* ── Header ── */}
-      <header style={{ background: "linear-gradient(135deg, " + T.pri + " 0%, #2c5a8a 100%)", color: "#fff", paddingTop: 0 }}>
-        <div style={{ maxWidth: 760, margin: "0 auto", padding: "18px 20px 0" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🏠</div>
+      <header style={{ background: `linear-gradient(140deg, ${T.pri} 0%, ${T.priMid} 50%, #3b6cb5 100%)`, color: "#fff", paddingTop: 0, position: "relative", overflow: "hidden" }}>
+        {/* Subtle pattern overlay */}
+        <div style={{ position: "absolute", inset: 0, opacity: 0.04, backgroundImage: "radial-gradient(circle at 20% 50%, #fff 1px, transparent 1px), radial-gradient(circle at 80% 20%, #fff 1px, transparent 1px)", backgroundSize: "60px 60px, 80px 80px" }} />
+        <div style={{ maxWidth: 760, margin: "0 auto", padding: "20px 20px 0", position: "relative" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 18 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: "rgba(255,255,255,.15)", backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, boxShadow: "0 2px 8px rgba(0,0,0,.12)" }}>🏠</div>
               <div>
-                <h1 style={{ fontSize: 17, fontWeight: 700, letterSpacing: "-0.3px", lineHeight: 1.2 }}>H2A Gestion</h1>
-                <p style={{ fontSize: 11, opacity: 0.7, fontWeight: 400 }}>État des lieux</p>
+                <h1 style={{ fontSize: 18, fontWeight: 800, letterSpacing: "-0.4px", lineHeight: 1.2 }}>H2A Gestion</h1>
+                <p style={{ fontSize: 11, opacity: 0.65, fontWeight: 500, letterSpacing: "0.3px" }}>État des lieux</p>
               </div>
             </div>
-            <div style={{ display: "flex", gap: 6 }}>
-              {saving && <span style={{ fontSize: 11, opacity: 0.6, display: "flex", alignItems: "center", gap: 4 }}>💾 Sauvegarde…</span>}
-              <button onClick={() => setShowHelp(true)} style={{ ...btnBase, width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,.12)", color: "#fff", fontSize: 15, padding: 0 }}>?</button>
-              <button onClick={() => setPanel(panel === "info" ? null : "info")} style={{ ...btnBase, width: 34, height: 34, borderRadius: "50%", background: panel === "info" ? "rgba(255,255,255,.25)" : "rgba(255,255,255,.12)", color: "#fff", fontSize: 15, padding: 0 }}>⚙️</button>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              {saving && <span style={{ fontSize: 11, opacity: 0.7, display: "flex", alignItems: "center", gap: 5, background: "rgba(255,255,255,.1)", padding: "5px 10px", borderRadius: 20 }}><span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", animation: "pulse 1.2s infinite" }} />Sauvegarde…</span>}
+              <button onClick={() => setShowHelp(true)} className="btn-hover" style={{ ...btnBase, width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,.1)", backdropFilter: "blur(4px)", color: "#fff", fontSize: 15, padding: 0 }}>?</button>
+              <button onClick={() => setPanel(panel === "info" ? null : "info")} className="btn-hover" style={{ ...btnBase, width: 36, height: 36, borderRadius: "50%", background: panel === "info" ? "rgba(255,255,255,.22)" : "rgba(255,255,255,.1)", backdropFilter: "blur(4px)", color: "#fff", fontSize: 15, padding: 0 }}>⚙️</button>
             </div>
           </div>
 
           {/* Property tabs */}
-          <div style={{ display: "flex", gap: 2, alignItems: "flex-end", overflowX: "auto", paddingBottom: 0 }}>
+          <div style={{ display: "flex", gap: 3, alignItems: "flex-end", overflowX: "auto", paddingBottom: 0, scrollbarWidth: "none" }}>
             {props.map((pr, i) => (
               <div key={pr.id || i}>
                 {editingName === i ? (
                   <input ref={nameRef} value={pr.name}
                     onChange={e => updateProps(ps => ps.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
                     onBlur={() => setEditingName(null)} onKeyDown={e => { if (e.key === "Enter") setEditingName(null); }}
-                    style={{ padding: "8px 14px", borderRadius: "10px 10px 0 0", border: "none", background: "rgba(255,255,255,.2)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", outline: "none", width: 150 }} />
+                    style={{ padding: "9px 16px", borderRadius: "12px 12px 0 0", border: "none", background: "rgba(255,255,255,.2)", color: "#fff", fontSize: 13, fontWeight: 600, fontFamily: "inherit", outline: "none", width: 150 }} />
                 ) : (
                   <button onClick={() => { setPi(i); setRi(null); setTab("entree"); setPanel(null); }}
                     onDoubleClick={() => setEditingName(i)} title="Double-clic pour renommer"
-                    style={{ padding: "9px 16px", borderRadius: "10px 10px 0 0", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all .15s",
-                      background: i === pi ? "rgba(255,255,255,.18)" : "transparent", color: i === pi ? "#fff" : "rgba(255,255,255,.5)" }}>
+                    style={{ padding: "10px 18px", borderRadius: "12px 12px 0 0", border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "all .2s",
+                      background: i === pi ? "rgba(255,255,255,.18)" : "transparent", color: i === pi ? "#fff" : "rgba(255,255,255,.45)",
+                      borderBottom: i === pi ? "2px solid rgba(255,255,255,.5)" : "2px solid transparent" }}>
                     {pr.name || "Logement " + (i + 1)}
                   </button>
                 )}
               </div>
             ))}
-            <button onClick={addProp} style={{ padding: "8px 14px", borderRadius: "10px 10px 0 0", border: "none", background: "transparent", color: "rgba(255,255,255,.4)", fontSize: 18, cursor: "pointer", fontWeight: 300, transition: "all .15s" }} title="Ajouter un logement">+</button>
+            <button onClick={addProp} className="btn-hover" style={{ padding: "9px 16px", borderRadius: "12px 12px 0 0", border: "none", background: "transparent", color: "rgba(255,255,255,.35)", fontSize: 20, cursor: "pointer", fontWeight: 300, transition: "all .15s" }} title="Ajouter un logement">+</button>
           </div>
         </div>
       </header>
@@ -602,14 +624,16 @@ export default function App() {
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "16px 20px 60px" }}>
 
         {/* Sub-tabs */}
-        <div style={{ display: "flex", gap: 4, marginBottom: 20, background: T.card, borderRadius: T.radius, padding: 4, boxShadow: T.shadow, border: "1px solid " + T.brd }}>
+        <div style={{ display: "flex", gap: 4, marginBottom: 22, background: T.card, borderRadius: T.radius, padding: 5, boxShadow: T.shadow, border: "1px solid " + T.brd }}>
           {[["entree", "🔑 Entrée"], ["sortie", "🚪 Sortie"], ["dossier", "📁 Dossier"], ["archives", "🗄️ Archives"]].map(([k, l]) => (
             <button key={k} onClick={() => { setTab(k); setRi(null); setPanel(k === tab ? panel : null); }}
               style={{
-                ...btnBase, flex: 1, padding: "10px 0", borderRadius: T.radiusSm, fontSize: 13,
-                background: tab === k ? T.pri : "transparent",
+                ...btnBase, flex: 1, padding: "11px 0", borderRadius: T.radiusSm, fontSize: 13,
+                background: tab === k ? `linear-gradient(135deg, ${T.pri}, ${T.priMid})` : "transparent",
                 color: tab === k ? "#fff" : T.sub,
                 fontWeight: tab === k ? 700 : 500,
+                boxShadow: tab === k ? "0 2px 8px " + T.pri + "30" : "none",
+                transition: "all .2s ease",
               }}>{l}</button>
           ))}
         </div>
@@ -715,7 +739,7 @@ export default function App() {
             </div>
 
             {tab === "sortie" && (!p.sortie.rooms.some(r => r.elements.some(e => e.comment || e.photos.length || e.etat !== "Bon état"))) && (
-              <button onClick={copyEntreeToSortie} style={{ ...card, width: "100%", padding: 16, cursor: "pointer", border: "2px dashed " + T.pri + "40", background: T.priLight, textAlign: "center", color: T.pri, fontWeight: 600, fontSize: 13, fontFamily: "inherit" }}>
+              <button onClick={copyEntreeToSortie} className="card-hover" style={{ ...card, width: "100%", padding: 20, cursor: "pointer", border: "2px dashed " + T.pri + "35", background: `linear-gradient(135deg, ${T.priLight}, #f0f4ff)`, textAlign: "center", color: T.pri, fontWeight: 700, fontSize: 13, fontFamily: "inherit" }}>
                 📋 Copier depuis l'état des lieux d'entrée
               </button>
             )}
@@ -724,19 +748,22 @@ export default function App() {
               const deg = room.elements.some(e => e.etat === "Dégradé" || e.etat === "Hors service");
               const nf = room.elements.filter(e => !e.fonctionnel).length;
               const ph = room.elements.reduce((s, e) => s + e.photos.length, 0);
+              const total = room.elements.length;
+              const filled = room.elements.filter(e => e.comment || e.photos.length > 0 || e.etat !== "Bon état").length;
+              const pct = total ? Math.round((filled / total) * 100) : 0;
               return (
-                <div key={room.id} style={{ ...card, cursor: "pointer", padding: 0, overflow: "hidden" }}>
+                <div key={room.id} className="card-hover fade-up" style={{ ...card, cursor: "pointer", padding: 0, overflow: "hidden", animationDelay: (idx * 0.04) + "s" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                     {/* Reorder arrows */}
-                    <div style={{ display: "flex", flexDirection: "column", padding: "4px 2px 4px 6px", gap: 0 }}>
+                    <div style={{ display: "flex", flexDirection: "column", padding: "4px 4px 4px 8px", gap: 2 }}>
                       <button disabled={idx === 0} onClick={(e) => { e.stopPropagation(); moveRoom(idx, idx - 1); }}
-                        style={{ ...btnBase, fontSize: 10, color: idx === 0 ? T.brd : T.mut, padding: "2px 4px", background: "none" }}>▲</button>
+                        style={{ ...btnBase, fontSize: 9, color: idx === 0 ? T.brd : T.mut, padding: "3px 5px", background: "none", borderRadius: 4 }}>▲</button>
                       <button disabled={idx === insp.rooms.length - 1} onClick={(e) => { e.stopPropagation(); moveRoom(idx, idx + 1); }}
-                        style={{ ...btnBase, fontSize: 10, color: idx === insp.rooms.length - 1 ? T.brd : T.mut, padding: "2px 4px", background: "none" }}>▼</button>
+                        style={{ ...btnBase, fontSize: 9, color: idx === insp.rooms.length - 1 ? T.brd : T.mut, padding: "3px 5px", background: "none", borderRadius: 4 }}>▼</button>
                     </div>
-                    <div onClick={() => setRi(idx)} style={{ flex: 1, padding: "14px 16px 14px 8px", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div onClick={() => setRi(idx)} style={{ flex: 1, padding: "16px 16px 16px 10px", display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                           {editingRoom === idx ? (
                             <input ref={roomNameRef} value={room.name}
                               onClick={e => e.stopPropagation()}
@@ -745,21 +772,24 @@ export default function App() {
                               style={{ ...inputStyle, padding: "4px 8px", width: 160, fontSize: 14, fontWeight: 600 }} />
                           ) : (
                             <>
-                              <span style={{ fontWeight: 600, fontSize: 14, color: T.txt }}>{room.name}</span>
+                              <span style={{ fontWeight: 700, fontSize: 14, color: T.txt }}>{room.name}</span>
                               <button onClick={e => { e.stopPropagation(); setEditingRoom(idx); }}
-                                style={{ ...btnBase, background: "none", color: T.mut, padding: 2, fontSize: 13 }} title="Renommer">✏️</button>
+                                style={{ ...btnBase, background: "none", color: T.mut, padding: 2, fontSize: 12, opacity: 0.5 }} title="Renommer">✏️</button>
                             </>
                           )}
                         </div>
-                        <div style={{ fontSize: 11, color: T.mut, marginTop: 3, display: "flex", gap: 10, alignItems: "center" }}>
-                          <span>{room.elements.length} éléments</span>
-                          {ph > 0 && <span>📷 {ph}</span>}
-                          {nf > 0 && <span style={{ color: T.dan, fontWeight: 600 }}>⚠ {nf} HS</span>}
+                        <div style={{ fontSize: 11, color: T.mut, marginTop: 4, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                          <span style={{ background: T.priLight, padding: "2px 8px", borderRadius: 10, fontWeight: 500, fontSize: 10 }}>{room.elements.length} éléments</span>
+                          {ph > 0 && <span style={{ background: "#eff6ff", padding: "2px 8px", borderRadius: 10, fontWeight: 500, fontSize: 10, color: "#3b82f6" }}>📷 {ph}</span>}
+                          {nf > 0 && <span style={{ background: T.danLight, padding: "2px 8px", borderRadius: 10, fontWeight: 600, fontSize: 10, color: T.dan }}>⚠ {nf} HS</span>}
                         </div>
                         <RoomProgress room={room} />
                       </div>
-                      {deg && <span style={{ fontSize: 18 }}>⚠️</span>}
-                      <span style={{ color: T.mut, fontSize: 16, fontWeight: 300 }}>›</span>
+                      {deg && <span style={{ fontSize: 16, filter: "drop-shadow(0 1px 2px rgba(0,0,0,.1))" }}>⚠️</span>}
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: pct === 100 ? T.acc : T.mut }}>{pct}%</span>
+                        <span style={{ color: T.brd, fontSize: 18, fontWeight: 300 }}>›</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -768,14 +798,14 @@ export default function App() {
 
             <AddBtn label="Ajouter une pièce" onAdd={name => uInsp({ rooms: [...insp.rooms, makeRoom(name)] })} placeholder="Ex : Chambre 2, Garage…" />
 
-            <div style={{ display: "flex", gap: 8, marginTop: 20, flexWrap: "wrap" }}>
-              <button onClick={() => setPanel(panel === "releves" ? null : "releves")} style={panel === "releves" ? { ...btnPri, background: T.priHover } : btnSec}>🔢 Relevés / Clés</button>
-              <button onClick={() => setPanel(panel === "sign" ? null : "sign")} style={panel === "sign" ? { ...btnPri, background: T.priHover } : btnSec}>✍️ Signatures</button>
+            <div style={{ display: "flex", gap: 8, marginTop: 24, flexWrap: "wrap" }}>
+              <button onClick={() => setPanel(panel === "releves" ? null : "releves")} className="btn-hover" style={panel === "releves" ? { ...btnPri, background: T.priHover } : btnSec}>🔢 Relevés / Clés</button>
+              <button onClick={() => setPanel(panel === "sign" ? null : "sign")} className="btn-hover" style={panel === "sign" ? { ...btnPri, background: T.priHover } : btnSec}>✍️ Signatures</button>
               <div style={{ flex: 1 }} />
-              <button onClick={printPDF} style={btnPri}>📄 PDF</button>
+              <button onClick={printPDF} className="btn-hover" style={btnPri}>📄 PDF</button>
               {!insp.completed
-                ? <button onClick={() => uInsp({ completed: true })} style={{ ...btnBase, padding: "10px 20px", background: T.acc, color: "#fff" }}>✅ Finaliser</button>
-                : <button onClick={archiveEdl} style={{ ...btnBase, padding: "10px 20px", background: T.warn, color: "#fff" }}>🗄️ Archiver</button>
+                ? <button onClick={() => uInsp({ completed: true })} className="btn-hover" style={{ ...btnBase, padding: "10px 20px", background: `linear-gradient(135deg, ${T.acc}, #059669)`, color: "#fff", boxShadow: "0 2px 8px " + T.acc + "30" }}>✅ Finaliser</button>
+                : <button onClick={archiveEdl} className="btn-hover" style={{ ...btnBase, padding: "10px 20px", background: `linear-gradient(135deg, ${T.warn}, #b45309)`, color: "#fff", boxShadow: "0 2px 8px " + T.warn + "30" }}>🗄️ Archiver</button>
               }
             </div>
 
@@ -820,19 +850,19 @@ export default function App() {
           const entreeRoom = tab === "sortie" ? p.entree.rooms.find(r => r.name === room.name) : null;
           return (
             <>
-              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-                <button onClick={() => setRi(null)} style={{ ...btnBase, background: T.priLight, color: T.pri, width: 36, height: 36, borderRadius: "50%", fontSize: 16, padding: 0 }}>←</button>
-                <h2 style={{ fontSize: 18, fontWeight: 700, flex: 1, color: T.txt }}>{room.name}</h2>
+              <div className="fade-up" style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 20 }}>
+                <button onClick={() => setRi(null)} className="btn-hover" style={{ ...btnBase, background: T.priLight, color: T.pri, width: 38, height: 38, borderRadius: "50%", fontSize: 16, padding: 0, boxShadow: T.shadow }}>←</button>
+                <h2 style={{ fontSize: 19, fontWeight: 800, flex: 1, color: T.txt, letterSpacing: "-0.3px" }}>{room.name}</h2>
                 <div style={{ display: "flex", gap: 6 }}>
-                  {ri > 0 && <button onClick={() => setRi(ri - 1)} style={{ ...btnSmall, ...btnSec }}>‹ Préc.</button>}
-                  {ri < insp.rooms.length - 1 && <button onClick={() => setRi(ri + 1)} style={{ ...btnSmall, ...btnPri }}>Suiv. ›</button>}
+                  {ri > 0 && <button onClick={() => setRi(ri - 1)} className="btn-hover" style={{ ...btnSmall, ...btnSec }}>‹ Préc.</button>}
+                  {ri < insp.rooms.length - 1 && <button onClick={() => setRi(ri + 1)} className="btn-hover" style={{ ...btnSmall, ...btnPri }}>Suiv. ›</button>}
                 </div>
               </div>
 
               {cats.map(cat => (
                 <div key={cat} style={{ marginBottom: 16 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: T.pri, textTransform: "uppercase", letterSpacing: 1.5, marginBottom: 8, paddingBottom: 6, borderBottom: "2px solid " + T.priLight, display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ width: 4, height: 4, borderRadius: "50%", background: T.pri, display: "inline-block" }} />
+                  <div style={{ fontSize: 10, fontWeight: 800, color: T.pri, textTransform: "uppercase", letterSpacing: 1.8, marginBottom: 10, paddingBottom: 8, borderBottom: "2px solid " + T.priLight, display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ width: 6, height: 6, borderRadius: 2, background: `linear-gradient(135deg, ${T.pri}, ${T.priMid})`, display: "inline-block" }} />
                     {cat}
                   </div>
                   {room.elements.map((el, ei) => {
@@ -859,11 +889,12 @@ export default function App() {
                           {ETATS.map(et => (
                             <button key={et} onClick={() => uEl(ri, ei, { etat: et })}
                               style={{
-                                padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer",
-                                fontFamily: "inherit", border: "1.5px solid " + ETAT_COLORS[et],
+                                padding: "5px 12px", borderRadius: 20, fontSize: 11, fontWeight: 600, cursor: "pointer",
+                                fontFamily: "inherit", border: "1.5px solid " + (el.etat === et ? ETAT_COLORS[et] : ETAT_COLORS[et] + "50"),
                                 background: el.etat === et ? ETAT_COLORS[et] : "transparent",
                                 color: el.etat === et ? "#fff" : ETAT_COLORS[et],
-                                transition: "all .12s",
+                                transition: "all .15s",
+                                boxShadow: el.etat === et ? "0 2px 6px " + ETAT_COLORS[et] + "30" : "none",
                               }}>{et}</button>
                           ))}
                         </div>
